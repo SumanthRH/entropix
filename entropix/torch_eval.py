@@ -1,4 +1,4 @@
-from typing import NamedTuple, Optional, Tuple
+from typing import NamedTuple, Optional, Tuple, List
 
 import torch
 import torch.nn.functional as F
@@ -88,19 +88,20 @@ def build_attn_mask(seqlen: int, start_pos: int) -> torch.Tensor:
   return mask
 
 
-def run(prompt):
+def run(prompt, add_bos: bool =False):
     with torch.inference_mode():
         model_params = LLAMA_1B_PARAMS
         xfmr_weights = load_weights()
 
         tokenizer = Tokenizer('entropix/tokenizer.model')
-        raw_tokens1 = tokenizer.encode(prompt,  bos=False, eos=False, allowed_special='all')
+        raw_tokens1 = tokenizer.encode(prompt,  bos=add_bos, eos=False, allowed_special='all')
         #this is not used in this script, but can be used to generate base_raw_tokens1
         base_raw_tokens1 = tokenizer.encode(bp1, bos=True, eos=False, allowed_special='all')
 
 
-        def generate(xfmr_weights, model_params, tokens):
+        def generate(xfmr_weights, model_params, tokens) -> List[int]:
             gen_tokens = None
+            out_tokens = []
             cur_pos = 0
             tokens = torch.tensor([tokens], dtype=torch.long).to(device)
             bsz, seqlen = tokens.shape
@@ -111,6 +112,7 @@ def run(prompt):
             next_token = torch.argmax(logits[:, -1], dim=-1, keepdim=True).to(torch.int32)
             gen_tokens = next_token
             print(tokenizer.decode([next_token.item()]), end='', flush=True)
+            out_tokens.append(next_token)
             cur_pos = seqlen
             stop = torch.tensor([128001, 128008, 128009], device=device, dtype=torch.int32)
             while cur_pos < 8192:
@@ -119,11 +121,14 @@ def run(prompt):
                 next_token = sample(gen_tokens, logits, scores)
                 gen_tokens = torch.cat((gen_tokens, next_token), dim=1)
                 print(tokenizer.decode(next_token.tolist()[0]), end='', flush=True)
+                out_tokens.append(next_token)
                 if torch.isin(next_token, stop).any():
                     break
+            return out_tokens
 
         print(prompt)
-        generate(xfmr_weights, model_params, raw_tokens1)
+        out = generate(xfmr_weights, model_params, raw_tokens1)
+        return out
 
 
 def main():

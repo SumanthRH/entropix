@@ -17,6 +17,7 @@ def calculate_varentropy_logsoftmax(logits: torch.Tensor, axis: int = -1) -> Tup
     log_probs = F.log_softmax(logits, dim=axis)
     probs = torch.exp(log_probs)
     entropy = -torch.sum(probs * log_probs, dim=axis) / LN_2  # Convert to base-2
+    # varentropy = torch.sum((probs * (log_probs / LN_2)**2), dim=axis)  - entropy**2
     varentropy = torch.sum(probs * (log_probs / LN_2 + entropy.unsqueeze(-1))**2, dim=axis)
     return entropy, varentropy
 

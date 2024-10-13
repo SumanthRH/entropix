@@ -67,7 +67,7 @@ def fixed_get_imports(filename: str | os.PathLike) -> list[str]:
 def main(model_id: str, out_dir: Path):
     t_paths_candidates = [
         Path.home() / '.hf_token',
-        Path.home() / '.cache' / 'huggingface' / 'token'
+        Path.home() / '.cache' / 'huggingface' / 'token' if not os.environ.get("HF_HOME") else Path(os.environ["HF_HOME"]) / "token"
     ]
     token = None
     for t_path in t_paths_candidates:
